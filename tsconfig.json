@@ -1,4 +1,10 @@
 {
+  "compilerOptions": {
+    // ... existing options ...
+    "types": ["@types/node", "mediapipe"]
+  }
+}
+{
   "files": [],
   "references": [
     { "path": "./tsconfig.app.json" },

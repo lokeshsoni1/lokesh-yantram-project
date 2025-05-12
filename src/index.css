@@ -1,9 +1,9 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Inter:wght@300;400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap');
-
 
 @layer base {
   :root {
@@ -38,12 +38,6 @@
     --radius: 0.75rem;
   }
 
-  .theme-orange {
-    --background: 30 50% 10%;
-    --foreground: 30 100% 95%;
-    ...
-  }
-  
   .theme-blue {
     --background: 222 25% 14%;
     --foreground: 210 40% 98%;
@@ -98,36 +92,6 @@
     --accent-foreground: 144 40% 98%;
   }
 
-  .theme-cyberpunk {
-    --background: 240 80% 5%;
-    --foreground: 180 100% 60%;
-    --card: 240 70% 8%;
-    --card-foreground: 180 100% 60%;
-    --primary: 320 100% 60%;
-    --primary-foreground: 180 100% 99%;
-    --secondary: 280 100% 50%;
-    --secondary-foreground: 180 100% 99%;
-    --muted: 240 70% 15%;
-    --muted-foreground: 180 70% 50%;
-    --accent: 320 100% 60%;
-    --accent-foreground: 180 100% 99%;
-  }
-
-  .theme-neon {
-    --background: 235 60% 8%;
-    --foreground: 150 100% 70%;
-    --card: 235 50% 12%;
-    --card-foreground: 150 100% 70%;
-    --primary: 340 100% 70%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 210 100% 50%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 235 40% 20%;
-    --muted-foreground: 150 60% 60%;
-    --accent: 340 100% 70%;
-    --accent-foreground: 0 0% 100%;
-  }
-
   * {
     @apply border-border;
   }
@@ -154,21 +118,8 @@
 }
 
 @layer components {
-
-  .custom-button {
-    @apply px-4 py-2 rounded-lg bg-primary text-white shadow-md hover:bg-primary/90;
-  }
-  
   .gradient-text {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-500;
-  }
-  
-  .theme-cyberpunk .gradient-text {
-    @apply bg-gradient-to-r from-pink-500 to-purple-500;
-  }
-  
-  .theme-neon .gradient-text {
-    @apply bg-gradient-to-r from-green-400 to-blue-500;
   }
   
   .contact-link {
@@ -450,7 +401,7 @@
   
   /* Theme switcher styles */
   .theme-switcher {
-    @apply flex flex-wrap gap-2 p-2 bg-card/50 backdrop-blur rounded-full;
+    @apply flex gap-2 p-2 bg-card/50 backdrop-blur rounded-full;
   }
   
   .theme-button {
@@ -476,14 +427,6 @@
   .theme-button-green {
     @apply bg-green-600;
   }
-  
-  .theme-button-cyberpunk {
-    background: linear-gradient(135deg, #ff00ff, #00ffff);
-  }
-  
-  .theme-button-neon {
-    background: linear-gradient(135deg, #39ff14, #00ffff);
-  }
 
   /* Toggle switch */
   .camera-toggle {
@@ -491,12 +434,8 @@
     transition: all 0.3s ease;
   }
 
-  .camera-toggle:hover:not(:disabled) {
+  .camera-toggle:hover {
     @apply bg-secondary/80 border-primary/30;
-  }
-
-  .camera-toggle:disabled {
-    @apply opacity-70 cursor-not-allowed;
   }
 
   .camera-toggle svg {
@@ -509,11 +448,6 @@
 
   .camera-toggle.camera-off svg {
     @apply text-red-400;
-  }
-  
-  .loading-spinner {
-    @apply inline-block w-4 h-4 border-2 border-t-transparent rounded-full animate-spin;
-    border-color: currentColor transparent currentColor transparent;
   }
 
   /* Badge */
@@ -543,76 +477,6 @@
       opacity: 0.5;
     }
   }
-
-  /* Tech animations */
-  .tech-particles-container {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: -1;
-    overflow: hidden;
-    pointer-events: none;
-    opacity: 0.2;
-  }
-
-  .tech-particle {
-    position: absolute;
-    width: 2px;
-    height: 2px;
-    background-color: hsla(var(--primary) / 80%);
-    border-radius: 50%;
-  }
-
-  .digital-circuit {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: -2;
-    pointer-events: none;
-    opacity: 0.05;
-  }
-
-  .digital-line {
-    position: absolute;
-    background-color: hsla(var(--primary) / 50%);
-  }
-
-  .digital-node {
-    position: absolute;
-    width: 4px;
-    height: 4px;
-    background-color: hsla(var(--primary) / 70%);
-    border-radius: 50%;
-    animation: pulse 3s infinite;
-  }
-  
-  /* Mobile Responsive Fixes */
-  @media (max-width: 640px) {
-    .theme-switcher {
-      @apply gap-1 p-1;
-      max-width: 100%;
-      overflow-x: auto;
-    }
-    
-    .theme-button {
-      @apply w-6 h-6;
-      flex-shrink: 0;
-    }
-    
-    .viewport-container {
-      width: 100%;
-      max-width: 320px;
-    }
-    
-    .profile-image {
-      width: 100px;
-      height: 100px;
-    }
-  }
 }
 
 .font-poppins {
@@ -622,20 +486,3 @@
 .font-inter {
   font-family: 'Inter', sans-serif;
 }
-
-@keyframes glow {
-  0%, 100% {
-    box-shadow: 0 0 10px rgba(255, 200, 0, 0.7);
-  }
-  50% {
-    box-shadow: 0 0 20px rgba(255, 200, 0, 1);
-  }
-}
-
-@layer base {
-  body {
-    @apply bg-background text-foreground font-inter;
-    font-family: 'Patrick Hand', cursive; /* ADDITION HERE */
-  }
-}
-

@@ -12,13 +12,21 @@ const CameraToggle = ({ isCameraActive, toggleCamera, isLoading = false }: Camer
   return (
     <button 
       onClick={toggleCamera} 
-      className={`camera-toggle ${isCameraActive ? 'camera-on' : 'camera-off'} ${isLoading ? 'loading' : ''}`}
+      className={`
+        flex items-center justify-center gap-2 px-4 py-2 rounded-full 
+        transition-all duration-300 font-medium text-sm
+        ${isCameraActive 
+          ? 'bg-red-500 hover:bg-red-600 text-white' 
+          : 'bg-emerald-500 hover:bg-emerald-600 text-white'}
+        ${isLoading ? 'opacity-70 cursor-not-allowed' : 'opacity-100 cursor-pointer'}
+        shadow-md hover:shadow-lg
+      `}
       aria-label={isCameraActive ? 'Turn camera off' : 'Turn camera on'}
       disabled={isLoading}
     >
       {isLoading ? (
         <>
-          <span className="loading-spinner"></span>
+          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
           <span>Loading...</span>
         </>
       ) : isCameraActive ? (

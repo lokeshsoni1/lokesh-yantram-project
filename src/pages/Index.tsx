@@ -7,6 +7,9 @@ import CameraToggle from "@/components/CameraToggle";
 import ThemeSwitcher from "@/components/ThemeSwitcher";
 import BackgroundAnimations from "@/components/BackgroundAnimations";
 
+// Import the MediaPipe types (TypeScript will use this)
+import '../types/mediapipe';
+
 // Define theme options
 type ThemeOption = 'blue' | 'dark' | 'purple' | 'green' | 'cyberpunk' | 'neon';
 

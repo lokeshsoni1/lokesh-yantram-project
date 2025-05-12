@@ -25,6 +25,12 @@ const camera = new Camera(videoElement, {
 });
 camera.start();
 
+const themeToggleButton = document.getElementById('theme-toggle');
+
+themeToggleButton.addEventListener('click', () => {
+  document.body.classList.toggle('dark-theme');
+});
+
 
 export default {
 	darkMode: ["class"],

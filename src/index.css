@@ -154,6 +154,11 @@
 }
 
 @layer components {
+
+  .custom-button {
+    @apply px-4 py-2 rounded-lg bg-primary text-white shadow-md hover:bg-primary/90;
+  }
+  
   .gradient-text {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-500;
   }
@@ -617,3 +622,20 @@
 .font-inter {
   font-family: 'Inter', sans-serif;
 }
+
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(255, 200, 0, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(255, 200, 0, 1);
+  }
+}
+
+@layer base {
+  body {
+    @apply bg-background text-foreground font-inter;
+    font-family: 'Patrick Hand', cursive; /* ADDITION HERE */
+  }
+}
+

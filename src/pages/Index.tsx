@@ -31,8 +31,16 @@ const Index = () => {
   useEffect(() => {
     const loadMediaPipe = async () => {
       try {
-        // Load the MediaPipe Hands module dynamically
-        const { Hands } = await import('@mediapipe/hands');
+        // We need to check if we're in a browser environment
+        if (typeof window === 'undefined') return;
+        
+        // Try to dynamically import MediaPipe Hands
+        const mediapipeImport = await import('@mediapipe/hands');
+        if (!mediapipeImport || !mediapipeImport.Hands) {
+          throw new Error('MediaPipe Hands module not found');
+        }
+        
+        const { Hands } = mediapipeImport;
         
         // Create a new Hands instance
         handsRef.current = new Hands({
@@ -62,12 +70,12 @@ const Index = () => {
         });
       } catch (error) {
         console.error('Failed to load MediaPipe Hands:', error);
+        setIsLoading(false);
         toast.toast({
           title: "MediaPipe Load Error",
-          description: "Failed to load hand detection module",
+          description: "Failed to load hand detection module. Please check your connection and try again.",
           variant: "destructive"
         });
-        setIsLoading(false);
       }
     };
     
@@ -76,12 +84,17 @@ const Index = () => {
     return () => {
       // Clean up MediaPipe resources
       if (handsRef.current) {
-        handsRef.current.close();
+        try {
+          handsRef.current.close();
+        } catch (e) {
+          console.error('Error closing MediaPipe:', e);
+        }
       }
       
       // Clean up any active streams
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
       }
     };
   }, []);
@@ -125,10 +138,23 @@ const Index = () => {
     
     // Turn camera on
     try {
-      if (!videoRef.current || !isMediaPipeLoaded) return;
+      if (!videoRef.current || !isMediaPipeLoaded) {
+        if (!isMediaPipeLoaded) {
+          toast.toast({
+            title: "MediaPipe Not Ready",
+            description: "Please wait for the hand detection system to initialize",
+            variant: "destructive"
+          });
+        }
+        return;
+      }
+      
+      // For mobile devices, use the environment camera if available
+      const facingMode = "user"; // Use "environment" for rear camera, "user" for front camera
       
       const constraints = {
         video: {
+          facingMode,
           width: { ideal: 640 },
           height: { ideal: 480 }
         }
@@ -139,22 +165,50 @@ const Index = () => {
       videoRef.current.srcObject = stream;
       
       videoRef.current.onloadedmetadata = () => {
-        videoRef.current?.play();
-        setIsCameraActive(true);
-        toast.toast({
-          title: "Camera Activated",
-          description: "Wave your hand in front of the camera",
-        });
+        if (!videoRef.current) return;
         
-        // Start processing frames
-        sendFramesToMediaPipe();
+        videoRef.current.play()
+          .then(() => {
+            setIsCameraActive(true);
+            toast.toast({
+              title: "Camera Activated",
+              description: "Wave your hand in front of the camera",
+            });
+            
+            // Start processing frames
+            sendFramesToMediaPipe();
+          })
+          .catch(error => {
+            console.error('Error playing video:', error);
+            toast.toast({
+              title: "Video Playback Error",
+              description: "Could not start the camera feed",
+              variant: "destructive"
+            });
+          });
       };
     } catch (error) {
       console.error('Error accessing webcam:', error);
       setHandState('error');
+      
+      // More descriptive error message
+      let errorMessage = "Please allow camera access to use this app";
+      
+      if (error instanceof DOMException) {
+        if (error.name === 'NotAllowedError') {
+          errorMessage = "Camera access was denied. Please allow camera permissions in your browser settings.";
+        } else if (error.name === 'NotFoundError') {
+          errorMessage = "No camera was found on your device.";
+        } else if (error.name === 'NotReadableError') {
+          errorMessage = "Camera is already in use by another application.";
+        } else if (error.name === 'OverconstrainedError') {
+          errorMessage = "The requested camera settings are not available.";
+        }
+      }
+      
       toast.toast({
         title: "Camera Access Error",
-        description: "Please allow camera access to use this app",
+        description: errorMessage,
         variant: "destructive"
       });
     }
@@ -172,12 +226,20 @@ const Index = () => {
       return;
     }
 
-    // Process the current frame
-    await handsRef.current.send({image: videoElement});
-    
-    // Request the next frame (only if camera is still active)
-    if (isCameraActive) {
-      requestAnimationFrame(sendFramesToMediaPipe);
+    try {
+      // Process the current frame
+      await handsRef.current.send({image: videoElement});
+      
+      // Request the next frame (only if camera is still active)
+      if (isCameraActive) {
+        requestAnimationFrame(sendFramesToMediaPipe);
+      }
+    } catch (error) {
+      console.error('Error processing frame:', error);
+      // Continue trying to process frames despite errors
+      if (isCameraActive) {
+        requestAnimationFrame(sendFramesToMediaPipe);
+      }
     }
   };
 
@@ -365,6 +427,7 @@ const Index = () => {
                 height="240" 
                 autoPlay 
                 playsInline
+                muted // Important for mobile devices
               ></video>
               <canvas 
                 ref={canvasRef} 

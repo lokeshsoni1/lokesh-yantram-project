@@ -7,6 +7,11 @@ const hands = new Hands({
   }
 });
 
+fontFamily: {
+  hands: ['"Patrick Hand"', 'cursive'],
+},
+
+
 hands.setOptions({
   maxNumHands: 1,
   modelComplexity: 1,

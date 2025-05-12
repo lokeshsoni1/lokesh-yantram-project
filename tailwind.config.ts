@@ -1,6 +1,20 @@
 declare var Hands: any;
 import type { Config } from "tailwindcss";
 
+const hands = new Hands({
+  locateFile: (file) => {
+    return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+  }
+});
+
+hands.setOptions({
+  maxNumHands: 1,
+  modelComplexity: 1,
+  minDetectionConfidence: 0.7,
+  minTrackingConfidence: 0.5
+});
+
+
 export default {
 	darkMode: ["class"],
 	content: [

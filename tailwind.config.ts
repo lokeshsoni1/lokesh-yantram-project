@@ -11,6 +11,11 @@ fontFamily: {
   hands: ['"Patrick Hand"', 'cursive'],
 },
 
+extend: {
+  fontFamily: {
+    hands: ['"Comic Sans MS"', 'cursive'], // ✅ or another valid font array
+  },
+}
 
 hands.setOptions({
   maxNumHands: 1,

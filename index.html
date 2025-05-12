@@ -19,12 +19,40 @@
     
     <!-- Favicon -->
     <link rel="icon" href="/lovable-uploads/61fe9a91-410f-416a-b649-d01e54ad9c2c.png" type="image/png">
+    <link rel="shortcut icon" href="/lovable-uploads/61fe9a91-410f-416a-b649-d01e54ad9c2c.png" type="image/png">
+    <link rel="apple-touch-icon" href="/lovable-uploads/61fe9a91-410f-416a-b649-d01e54ad9c2c.png">
   </head>
 
   <body>
     <div id="root"></div>
     <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
+    
+    <!-- Add Polyfill for Mobile Browser Compatibility -->
+    <script>
+      // Polyfill for ResizeObserver for older browsers
+      if (!('ResizeObserver' in window)) {
+        document.write('<script src="https://cdn.jsdelivr.net/npm/resize-observer-polyfill@1.5.1/dist/ResizeObserver.min.js"><\/script>');
+      }
+      
+      // Fix potential MediaPipe window issue
+      window.Hands = window.Hands || null;
+      
+      // Fix iOS video autoplay issues
+      document.addEventListener('DOMContentLoaded', () => {
+        // iOS workaround for video autoplay
+        const isiOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        if (isiOS) {
+          const videoElements = document.querySelectorAll('video');
+          videoElements.forEach(video => {
+            video.setAttribute('playsinline', '');
+            video.setAttribute('muted', '');
+            video.setAttribute('autoplay', '');
+          });
+        }
+      });
+    </script>
+    
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

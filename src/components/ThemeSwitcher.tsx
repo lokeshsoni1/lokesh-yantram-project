@@ -1,7 +1,7 @@
 
 import React from 'react';
 
-type ThemeOption = 'blue' | 'dark' | 'purple' | 'green';
+type ThemeOption = 'blue' | 'dark' | 'purple' | 'green' | 'cyberpunk' | 'neon';
 
 interface ThemeSwitcherProps {
   currentTheme: ThemeOption;
@@ -10,7 +10,7 @@ interface ThemeSwitcherProps {
 
 const ThemeSwitcher = ({ currentTheme, setTheme }: ThemeSwitcherProps) => {
   return (
-    <div className="theme-switcher">
+    <div className="theme-switcher flex flex-wrap gap-2">
       <button 
         className={`theme-button theme-button-blue ${currentTheme === 'blue' ? 'active' : ''}`}
         onClick={() => setTheme('blue')}
@@ -33,6 +33,18 @@ const ThemeSwitcher = ({ currentTheme, setTheme }: ThemeSwitcherProps) => {
         className={`theme-button theme-button-green ${currentTheme === 'green' ? 'active' : ''}`}
         onClick={() => setTheme('green')}
         aria-label="Green theme"
+        type="button"
+      />
+      <button 
+        className={`theme-button theme-button-cyberpunk ${currentTheme === 'cyberpunk' ? 'active' : ''}`}
+        onClick={() => setTheme('cyberpunk')}
+        aria-label="Cyberpunk theme"
+        type="button"
+      />
+      <button 
+        className={`theme-button theme-button-neon ${currentTheme === 'neon' ? 'active' : ''}`}
+        onClick={() => setTheme('neon')}
+        aria-label="Neon theme"
         type="button"
       />
     </div>

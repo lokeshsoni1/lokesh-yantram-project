@@ -38,6 +38,12 @@
     --radius: 0.75rem;
   }
 
+  .theme-orange {
+    --background: 30 50% 10%;
+    --foreground: 30 100% 95%;
+    ...
+  }
+  
   .theme-blue {
     --background: 222 25% 14%;
     --foreground: 210 40% 98%;

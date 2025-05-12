@@ -1,6 +1,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useToast } from "@/components/ui/use-toast";
+import { Camera } from "lucide-react";
 import CameraToggle from "@/components/CameraToggle";
 import ThemeSwitcher from "@/components/ThemeSwitcher";
 import BackgroundAnimations from "@/components/BackgroundAnimations";

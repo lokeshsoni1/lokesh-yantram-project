@@ -1,6 +1,11 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useToast } from "@/components/ui/use-toast";
+import CameraToggle from "@/components/CameraToggle";
+import ThemeSwitcher from "@/components/ThemeSwitcher";
+import BackgroundAnimations from "@/components/BackgroundAnimations";
+
+type ThemeOption = 'blue' | 'dark' | 'purple' | 'green';
 
 const Index = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -9,11 +14,19 @@ const Index = () => {
   const [bulbPower, setBulbPower] = useState<string>('off');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isMediaPipeLoaded, setIsMediaPipeLoaded] = useState<boolean>(false);
+  const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
+  const [theme, setTheme] = useState<ThemeOption>('blue');
   const handsRef = useRef<any>(null);
   const contactLinksRef = useRef<HTMLDivElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const toast = useToast();
 
-  // Initialize MediaPipe and webcam
+  // Set theme on the body element
+  useEffect(() => {
+    document.body.className = `theme-${theme}`;
+  }, [theme]);
+
+  // Initialize MediaPipe
   useEffect(() => {
     const loadMediaPipe = async () => {
       try {
@@ -40,6 +53,12 @@ const Index = () => {
         
         // Mark MediaPipe as loaded
         setIsMediaPipeLoaded(true);
+        setIsLoading(false);
+        
+        toast.toast({
+          title: "System Ready",
+          description: "Click the camera button to start hand detection",
+        });
       } catch (error) {
         console.error('Failed to load MediaPipe Hands:', error);
         toast.toast({
@@ -47,6 +66,7 @@ const Index = () => {
           description: "Failed to load hand detection module",
           variant: "destructive"
         });
+        setIsLoading(false);
       }
     };
     
@@ -57,51 +77,13 @@ const Index = () => {
       if (handsRef.current) {
         handsRef.current.close();
       }
-    };
-  }, []);
-
-  // Initialize webcam once MediaPipe is loaded
-  useEffect(() => {
-    if (!isMediaPipeLoaded) return;
-    
-    const initializeWebcam = async () => {
-      try {
-        if (!videoRef.current) return;
-        
-        const constraints = {
-          video: {
-            width: { ideal: 640 },
-            height: { ideal: 480 }
-          }
-        };
-        
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        videoRef.current.srcObject = stream;
-        
-        videoRef.current.onloadedmetadata = () => {
-          videoRef.current?.play();
-          setIsLoading(false);
-          toast.toast({
-            title: "Camera Ready",
-            description: "Wave your hand in front of the camera",
-          });
-          
-          // Start processing frames
-          sendFramesToMediaPipe();
-        };
-      } catch (error) {
-        console.error('Error accessing webcam:', error);
-        setHandState('error');
-        toast.toast({
-          title: "Camera Access Error",
-          description: "Please allow camera access to use this app",
-          variant: "destructive"
-        });
+      
+      // Clean up any active streams
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
       }
     };
-    
-    initializeWebcam();
-  }, [isMediaPipeLoaded]);
+  }, []);
 
   // Animate contact links on page load
   useEffect(() => {
@@ -115,9 +97,70 @@ const Index = () => {
       }, 500 + index * 200);
     });
   }, []);
+  
+  // Function to toggle camera on/off
+  const toggleCamera = async () => {
+    // If camera is already active, turn it off
+    if (isCameraActive) {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+      
+      setIsCameraActive(false);
+      setHandState('detecting');
+      setBulbPower('off');
+      
+      toast.toast({
+        title: "Camera Turned Off",
+        description: "Hand detection has stopped",
+      });
+      return;
+    }
+    
+    // Turn camera on
+    try {
+      if (!videoRef.current || !isMediaPipeLoaded) return;
+      
+      const constraints = {
+        video: {
+          width: { ideal: 640 },
+          height: { ideal: 480 }
+        }
+      };
+      
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      streamRef.current = stream;
+      videoRef.current.srcObject = stream;
+      
+      videoRef.current.onloadedmetadata = () => {
+        videoRef.current?.play();
+        setIsCameraActive(true);
+        toast.toast({
+          title: "Camera Activated",
+          description: "Wave your hand in front of the camera",
+        });
+        
+        // Start processing frames
+        sendFramesToMediaPipe();
+      };
+    } catch (error) {
+      console.error('Error accessing webcam:', error);
+      setHandState('error');
+      toast.toast({
+        title: "Camera Access Error",
+        description: "Please allow camera access to use this app",
+        variant: "destructive"
+      });
+    }
+  };
 
   const sendFramesToMediaPipe = async () => {
-    if (!videoRef.current || !handsRef.current || !canvasRef.current) {
+    if (!videoRef.current || !handsRef.current || !canvasRef.current || !isCameraActive) {
       return;
     }
 
@@ -131,8 +174,10 @@ const Index = () => {
     // Process the current frame
     await handsRef.current.send({image: videoElement});
     
-    // Request the next frame
-    requestAnimationFrame(sendFramesToMediaPipe);
+    // Request the next frame (only if camera is still active)
+    if (isCameraActive) {
+      requestAnimationFrame(sendFramesToMediaPipe);
+    }
   };
 
   // Process hand detection results
@@ -183,7 +228,9 @@ const Index = () => {
   ) => {
     // Draw connections between landmarks
     ctx.lineWidth = 2;
-    ctx.strokeStyle = '#4ade80';
+    ctx.strokeStyle = theme === 'green' ? '#4ade80' : 
+                     theme === 'purple' ? '#a78bfa' : 
+                     theme === 'dark' ? '#e2e8f0' : '#60a5fa';
     
     // Define connections between landmarks
     const connections = [
@@ -207,7 +254,9 @@ const Index = () => {
     }
     
     // Draw landmarks
-    ctx.fillStyle = '#60a5fa';
+    ctx.fillStyle = theme === 'green' ? '#22c55e' : 
+                   theme === 'purple' ? '#8b5cf6' : 
+                   theme === 'dark' ? '#f8fafc' : '#3b82f6';
     landmarks.forEach(landmark => {
       ctx.beginPath();
       ctx.arc(
@@ -250,6 +299,8 @@ const Index = () => {
 
   // Get status text based on hand state
   const getStatusText = () => {
+    if (!isCameraActive) return 'Click the button below to turn on camera';
+    
     switch (handState) {
       case 'open': return 'Hand Open - Bulb at Full Power';
       case 'half-open': return 'Hand Half Open - Bulb at Half Power';
@@ -261,13 +312,23 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background py-10 px-4 sm:px-6">
+    <div className={`min-h-screen bg-background py-10 px-4 sm:px-6`}>
+      <BackgroundAnimations />
+      
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <header className="text-center mb-10">
+        {/* Header with Theme Switcher */}
+        <header className="text-center mb-10 relative">
+          <div className="absolute right-0 top-0">
+            <ThemeSwitcher currentTheme={theme} setTheme={setTheme} />
+          </div>
           <h1 className="text-4xl sm:text-5xl font-bold mb-3 font-poppins gradient-text">
             Lokesh Yantram
           </h1>
+          <div className="flex justify-center gap-2 mb-4">
+            <span className="tech-badge">AI</span>
+            <span className="tech-badge">Hand Detection</span>
+            <span className="tech-badge">Interactive</span>
+          </div>
           <p className="text-muted-foreground max-w-2xl mx-auto">
             A hand gesture-controlled smart bulb interface. Open your hand to turn the bulb on, 
             close it to turn off, or keep it half-open for medium brightness.
@@ -286,6 +347,16 @@ const Index = () => {
                   <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
                 </div>
               )}
+              
+              {!isCameraActive && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-10">
+                  <div className="text-center p-4">
+                    <Camera className="mx-auto mb-2 opacity-50" size={40} />
+                    <p className="text-sm opacity-80">Camera is turned off</p>
+                  </div>
+                </div>
+              )}
+              
               <video 
                 ref={videoRef} 
                 className="viewport" 
@@ -302,7 +373,14 @@ const Index = () => {
               ></canvas>
             </div>
             
-            <div className="status-text">{getStatusText()}</div>
+            <div className="status-text mb-4">{getStatusText()}</div>
+            
+            <div className="flex justify-center">
+              <CameraToggle 
+                isCameraActive={isCameraActive} 
+                toggleCamera={toggleCamera} 
+              />
+            </div>
           </div>
           
           {/* Right column - Bulb and profile */}

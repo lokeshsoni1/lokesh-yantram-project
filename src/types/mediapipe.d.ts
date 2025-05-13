@@ -33,13 +33,21 @@ declare interface Hands {
   close(): void;
 }
 
-// Extend the Window interface to include MediaPipe objects
+// Extend the Window interface to include MediaPipe objects globally
 declare global {
   interface Window {
     Hands: {
       new(options?: HandsOptions): Hands;
     };
   }
+
+  // Make these types available globally without imports
+  const Hands: {
+    new(options?: HandsOptions): Hands;
+  };
+  
+  type HandLandmark = HandLandmark;
+  type HandsResults = HandsResults;
 }
 
 export {};

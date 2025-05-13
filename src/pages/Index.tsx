@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { toast as sonnerToast } from "sonner";
@@ -8,6 +9,11 @@ import BackgroundAnimations from "@/components/BackgroundAnimations";
 
 // Define theme options
 type ThemeOption = 'blue' | 'dark' | 'purple' | 'green' | 'cyberpunk' | 'neon';
+
+// Import types from mediapipe.d.ts - TypeScript will find them because we set them as global
+// But we're adding this here for clarity on what's being used
+// These are now globally defined in the mediapipe.d.ts file:
+// type Hands, type HandLandmark, type HandsResults
 
 const Index = () => {
   // Refs for DOM elements and MediaPipe
@@ -341,12 +347,12 @@ const Index = () => {
     // Clear the canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw video feed on canvas (mirrored) if you want to show video feed
-    // ctx.save();
-    // ctx.translate(canvas.width, 0);
-    // ctx.scale(-1, 1);
-    // ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
-    // ctx.restore();
+    // Draw video feed on canvas (mirrored)
+    ctx.save();
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+    ctx.restore();
 
     // Check if hands are detected
     if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {

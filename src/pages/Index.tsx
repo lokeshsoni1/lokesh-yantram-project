@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { toast as sonnerToast } from "sonner";
@@ -30,6 +29,7 @@ const Index = () => {
   const [theme, setTheme] = useState<ThemeOption>('blue');
   const [cameraPermissionDenied, setCameraPermissionDenied] = useState<boolean>(false);
   const [handLandmarks, setHandLandmarks] = useState<Array<HandLandmark> | null>(null);
+  const [fingerCount, setFingerCount] = useState<number>(0);
   
   // Access toast utilities
   const { toast } = useToast();
@@ -296,6 +296,7 @@ const Index = () => {
     setHandState('detecting');
     setBulbPower('off');
     setHandLandmarks(null);
+    setFingerCount(0);
     
     toast({
       title: "Camera Turned Off",
@@ -340,6 +341,13 @@ const Index = () => {
     // Clear the canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // Draw video feed on canvas (mirrored) if you want to show video feed
+    // ctx.save();
+    // ctx.translate(canvas.width, 0);
+    // ctx.scale(-1, 1);
+    // ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+    // ctx.restore();
+
     // Check if hands are detected
     if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
       // Get landmarks for the first hand
@@ -348,17 +356,18 @@ const Index = () => {
       // Store landmarks for use in other effects/renders
       setHandLandmarks(landmarks);
       
-      // Draw hand landmarks
-      drawHandLandmarks(ctx, landmarks, canvas.width, canvas.height);
+      // Draw robot-like hand skeleton with glow effects
+      drawRobotHandSkeleton(ctx, landmarks, canvas.width, canvas.height);
       
-      // Calculate hand state (open fingers)
-      const openFingers = countOpenFingers(landmarks);
+      // Count fingers using the improved method
+      const count = countFingers(landmarks);
+      setFingerCount(count);
       
-      // Update hand state and bulb power
-      if (openFingers >= 4) {
+      // Update hand state and bulb power based on finger count
+      if (count >= 4) {
         setHandState('open');
         setBulbPower('full');
-      } else if (openFingers >= 2) {
+      } else if (count >= 2) {
         setHandState('half-open');
         setBulbPower('half');
       } else {
@@ -368,11 +377,12 @@ const Index = () => {
     } else {
       setHandState('detecting');
       setHandLandmarks(null);
+      setFingerCount(0);
     }
   };
 
-  // Draw hand landmarks on canvas
-  const drawHandLandmarks = (
+  // Draw robot-like hand skeleton with glow effects
+  const drawRobotHandSkeleton = (
     ctx: CanvasRenderingContext2D, 
     landmarks: Array<HandLandmark>, 
     width: number, 
@@ -383,18 +393,18 @@ const Index = () => {
     
     switch (theme) {
       case 'green':
-        lineColor = '#4ade80';
-        pointColor = '#22c55e';
+        lineColor = '#22c55e';
+        pointColor = '#4ade80';
         jointColor = '#bbf7d0';
         break;
       case 'purple':
-        lineColor = '#a78bfa';
-        pointColor = '#8b5cf6';
+        lineColor = '#8b5cf6';
+        pointColor = '#a78bfa';
         jointColor = '#ddd6fe';
         break;
       case 'dark':
-        lineColor = '#e2e8f0';
-        pointColor = '#f8fafc';
+        lineColor = '#f8fafc';
+        pointColor = '#e2e8f0';
         jointColor = '#cbd5e1';
         break;
       case 'cyberpunk':
@@ -408,18 +418,11 @@ const Index = () => {
         jointColor = '#ff3399';
         break;
       default: // blue theme
-        lineColor = '#60a5fa';
-        pointColor = '#3b82f6';
+        lineColor = '#3b82f6';
+        pointColor = '#60a5fa';
         jointColor = '#bfdbfe';
     }
-    
-    // Draw hand mesh with glow effect
-    ctx.save();
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = lineColor;
-    ctx.shadowColor = lineColor;
-    ctx.shadowBlur = 10;
-    
+
     // Define connections between landmarks
     const connections = [
       [0, 1], [1, 2], [2, 3], [3, 4], // thumb
@@ -429,6 +432,13 @@ const Index = () => {
       [0, 17], [17, 18], [18, 19], [19, 20], // pinky
       [0, 5], [5, 9], [9, 13], [13, 17] // palm
     ];
+    
+    // Draw glowing lines for the robot hand skeleton
+    ctx.save();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = lineColor;
+    ctx.shadowColor = lineColor;
+    ctx.shadowBlur = 15;
     
     // Draw connections
     for (const [startIdx, endIdx] of connections) {
@@ -442,28 +452,30 @@ const Index = () => {
     }
     ctx.restore();
     
-    // Draw joints with glow effect
+    // Draw joints (larger at knuckles)
     ctx.save();
     ctx.fillStyle = jointColor;
     ctx.shadowColor = jointColor;
-    ctx.shadowBlur = 15;
+    ctx.shadowBlur = 10;
+    
     landmarks.forEach((landmark, i) => {
-      const isKnuckle = [0, 2, 5, 9, 13, 17].includes(i);
+      const isKnuckle = [0, 5, 9, 13, 17].includes(i);
       ctx.beginPath();
       ctx.arc(
         landmark.x * width, 
         landmark.y * height, 
-        isKnuckle ? 5 : 3, 0, 2 * Math.PI
+        isKnuckle ? 6 : 4, 0, 2 * Math.PI
       );
       ctx.fill();
     });
     ctx.restore();
     
-    // Draw fingertips with special color and larger size
+    // Draw glowing fingertips
     ctx.save();
     ctx.fillStyle = pointColor;
     ctx.shadowColor = pointColor;
     ctx.shadowBlur = 20;
+    
     const fingertips = [4, 8, 12, 16, 20]; // Indices of fingertips
     fingertips.forEach(i => {
       const landmark = landmarks[i];
@@ -471,59 +483,90 @@ const Index = () => {
       ctx.arc(
         landmark.x * width, 
         landmark.y * height, 
-        6, 0, 2 * Math.PI
+        8, 0, 2 * Math.PI
       );
       ctx.fill();
+      
+      // Add pulsing glow effect based on finger state
+      const isExtended = isFingerExtended(landmarks, Math.floor(i / 4));
+      if (isExtended) {
+        ctx.beginPath();
+        ctx.arc(
+          landmark.x * width, 
+          landmark.y * height, 
+          12, 0, 2 * Math.PI
+        );
+        ctx.fillStyle = `${pointColor}50`; // Semi-transparent
+        ctx.fill();
+      }
     });
     ctx.restore();
   };
 
-  // Count open fingers based on hand landmarks
-  const countOpenFingers = (landmarks: Array<HandLandmark>): number => {
-    if (!landmarks) return 0;
-    
-    let openFingers = 0;
-    
-    // Check if thumb is extended (different for left vs right hand)
-    // This is a simplified check that works better across different hand orientations
-    const thumbTip = landmarks[4];
-    const thumbIp = landmarks[3];
-    const thumbMcp = landmarks[2];
-    const wrist = landmarks[0]; 
-    
-    // Calculate distance from wrist to check if thumb is extended
-    const distanceFromWrist = Math.sqrt(
-      Math.pow(thumbTip.x - wrist.x, 2) + 
-      Math.pow(thumbTip.y - wrist.y, 2)
-    );
-    
-    const distanceFromMcp = Math.sqrt(
-      Math.pow(thumbTip.x - thumbMcp.x, 2) + 
-      Math.pow(thumbTip.y - thumbMcp.y, 2)
-    );
-    
-    // If thumb tip is far enough from wrist and MCP, consider it extended
-    if (distanceFromWrist > 0.15 && distanceFromMcp > 0.08) {
-      openFingers++;
+  // Check if a specific finger is extended
+  const isFingerExtended = (landmarks: Array<HandLandmark>, fingerIndex: number): boolean => {
+    if (fingerIndex === 0) {
+      // Thumb (special case)
+      const thumbTip = landmarks[4];
+      const thumbIp = landmarks[3];
+      const wrist = landmarks[0]; 
+      
+      // Calculate distance from wrist to check if thumb is extended
+      const distanceFromWrist = Math.sqrt(
+        Math.pow(thumbTip.x - wrist.x, 2) + 
+        Math.pow(thumbTip.y - wrist.y, 2)
+      );
+      
+      return distanceFromWrist > 0.15;
+    } else {
+      // Other fingers
+      const fingerTip = landmarks[fingerIndex * 4 + 8];
+      const fingerPip = landmarks[fingerIndex * 4 + 6];
+      
+      // Compare y-positions (lower y-value means higher position in image coordinates)
+      return fingerTip.y < fingerPip.y - 0.05; // Adding threshold
     }
-    
-    // For the four fingers, check if the tip is above (lower y value) than the PIP joint
-    // Index finger
-    if (landmarks[8].y < landmarks[6].y) openFingers++;
-    
-    // Middle finger
-    if (landmarks[12].y < landmarks[10].y) openFingers++;
-    
-    // Ring finger
-    if (landmarks[16].y < landmarks[14].y) openFingers++;
-    
-    // Pinky
-    if (landmarks[20].y < landmarks[18].y) openFingers++;
-    
-    return openFingers;
   };
 
-  // Get status text based on hand state
+  // Count open fingers based on hand landmarks - improved method
+  const countFingers = (landmarks: Array<HandLandmark>): number => {
+    if (!landmarks) return 0;
+    
+    // Define finger tip and base indices
+    const fingerTips = [4, 8, 12, 16, 20]; // thumb, index, middle, ring, pinky tips
+    const fingerBaseIndices = {
+      thumb: [2, 1], // IP and MCP joints
+      fingers: [6, 10, 14, 18] // PIP joints for other fingers
+    };
+    
+    let count = 0;
+    
+    // Special case for thumb - use x position relative to wrist
+    const thumbTipX = landmarks[4].x;
+    const thumbBaseX = landmarks[2].x;
+    const wristX = landmarks[0].x;
+    
+    // Check if thumb is extended based on x position relative to wrist
+    if ((wristX < thumbBaseX && thumbTipX < thumbBaseX - 0.05) || 
+        (wristX > thumbBaseX && thumbTipX > thumbBaseX + 0.05)) {
+      count++;
+    }
+    
+    // For other fingers, check if finger tip y is above finger PIP joint y
+    for (let i = 1; i < fingerTips.length; i++) {
+      const tipY = landmarks[fingerTips[i]].y;
+      const baseY = landmarks[fingerBaseIndices.fingers[i-1]].y;
+      
+      // If tip is higher than base (y decreases upward in image coordinates)
+      if (tipY < baseY - 0.06) { // Adding threshold to avoid false positives
+        count++;
+      }
+    }
+    
+    return count;
+  };
+
+  // Get status text based on hand state and finger count
   const getStatusText = () => {
     if (isMediaPipeLoading) return 'Initializing hand tracking system...';
     if (cameraPermissionDenied) return 'Camera access was denied. Please check permissions.';
@@ -531,9 +574,9 @@ const Index = () => {
     if (!isCameraActive) return 'Click the button below to turn on camera';
     
     switch (handState) {
-      case 'open': return 'Hand Open - Bulb at Full Power';
-      case 'half-open': return 'Hand Half Open - Bulb at Half Power';
-      case 'closed': return 'Hand Closed - Bulb Off';
+      case 'open': return `Hand Open (${fingerCount} fingers) - Bulb at Full Power`;
+      case 'half-open': return `Hand Half Open (${fingerCount} fingers) - Bulb at Half Power`;
+      case 'closed': return `Hand Closed (${fingerCount} fingers) - Bulb Off`;
       case 'detecting': return 'Show your hand in front of the camera';
       case 'error': return 'Camera access error. Please check permissions.';
       default: return 'Processing...';
@@ -651,7 +694,7 @@ const Index = () => {
               ></video>
               <canvas 
                 ref={canvasRef} 
-                className="hand-overlay absolute top-0 left-0 w-full h-full" 
+                className="hand-overlay absolute top-0 left-0 w-full h-full rounded-lg" 
                 width="640" 
                 height="480"
               ></canvas>
@@ -680,6 +723,9 @@ const Index = () => {
                 Current power: <span className="font-medium text-foreground">
                   {bulbPower === 'full' ? '100%' : bulbPower === 'half' ? '50%' : '0%'}
                 </span>
+              </div>
+              <div className="mt-2 text-xs text-muted-foreground">
+                Fingers detected: <span className="font-medium text-foreground">{fingerCount}</span>
               </div>
             </div>
             

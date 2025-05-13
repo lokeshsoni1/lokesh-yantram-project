@@ -46,6 +46,7 @@ declare global {
     new(options?: HandsOptions): Hands;
   };
   
+  type HandsInstance = Hands;
   type HandLandmark = HandLandmark;
   type HandsResults = HandsResults;
 }

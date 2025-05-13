@@ -13,7 +13,7 @@ type ThemeOption = 'blue' | 'dark' | 'purple' | 'green' | 'cyberpunk' | 'neon';
 // Import types from mediapipe.d.ts - TypeScript will find them because we set them as global
 // But we're adding this here for clarity on what's being used
 // These are now globally defined in the mediapipe.d.ts file:
-// type Hands, type HandLandmark, type HandsResults
+// type HandsInstance, type HandLandmark, type HandsResults
 
 const Index = () => {
   // Refs for DOM elements and MediaPipe
@@ -21,7 +21,7 @@ const Index = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const contactLinksRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const handsRef = useRef<Hands | null>(null);
+  const handsRef = useRef<HandsInstance | null>(null);
   const frameRef = useRef<number | null>(null);
   
   // State variables

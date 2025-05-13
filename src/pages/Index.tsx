@@ -1,86 +1,127 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useToast } from "@/components/ui/use-toast";
+import { toast as sonnerToast } from "sonner";
 import { Camera } from "lucide-react";
 import CameraToggle from "@/components/CameraToggle";
 import ThemeSwitcher from "@/components/ThemeSwitcher";
 import BackgroundAnimations from "@/components/BackgroundAnimations";
 
-type ThemeOption = 'blue' | 'dark' | 'purple' | 'green';
+// Import the MediaPipe types (TypeScript will use this)
+import '../types/mediapipe';
+
+// Define theme options
+type ThemeOption = 'blue' | 'dark' | 'purple' | 'green' | 'cyberpunk' | 'neon';
 
 const Index = () => {
+  // Refs for DOM elements and MediaPipe
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const contactLinksRef = useRef<HTMLDivElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const handsRef = useRef<any>(null);
+  const frameRef = useRef<number | null>(null);
+  
+  // State variables
   const [handState, setHandState] = useState<string>('detecting');
   const [bulbPower, setBulbPower] = useState<string>('off');
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isMediaPipeLoading, setIsMediaPipeLoading] = useState<boolean>(true);
   const [isMediaPipeLoaded, setIsMediaPipeLoaded] = useState<boolean>(false);
   const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
+  const [isCameraLoading, setIsCameraLoading] = useState<boolean>(false);
   const [theme, setTheme] = useState<ThemeOption>('blue');
-  const handsRef = useRef<any>(null);
-  const contactLinksRef = useRef<HTMLDivElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const toast = useToast();
+  const [cameraPermissionDenied, setCameraPermissionDenied] = useState<boolean>(false);
+  
+  // Access toast utilities
+  const { toast } = useToast();
 
   // Set theme on the body element
   useEffect(() => {
     document.body.className = `theme-${theme}`;
   }, [theme]);
 
-  // Initialize MediaPipe
+  // Initialize MediaPipe - using a more reliable CDN approach
   useEffect(() => {
-    const loadMediaPipe = async () => {
-      try {
-        // We need to check if we're in a browser environment
-        if (typeof window === 'undefined') return;
-        
-        // Try to dynamically import MediaPipe Hands
-        const mediapipeImport = await import('@mediapipe/hands');
-        if (!mediapipeImport || !mediapipeImport.Hands) {
-          throw new Error('MediaPipe Hands module not found');
+    const loadMediaPipeScript = () => {
+      return new Promise<void>((resolve, reject) => {
+        if (document.querySelector('script[src*="hands.js"]')) {
+          console.log("MediaPipe script already loaded");
+          resolve();
+          return;
         }
-        
-        const { Hands } = mediapipeImport;
-        
-        // Create a new Hands instance
-        handsRef.current = new Hands({
-          locateFile: (file) => {
-            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
-          }
-        });
 
-        // Configure the Hands instance
-        await handsRef.current.setOptions({
-          maxNumHands: 1,
-          modelComplexity: 1,
-          minDetectionConfidence: 0.5,
-          minTrackingConfidence: 0.5
-        });
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js';
+        script.crossOrigin = 'anonymous';
+        script.onload = () => {
+          console.log("MediaPipe script loaded successfully");
+          resolve();
+        };
+        script.onerror = (err) => {
+          console.error("Failed to load MediaPipe script:", err);
+          reject(new Error('Failed to load MediaPipe script'));
+        };
+        document.body.appendChild(script);
+      });
+    };
 
-        // Set up the callback function for results
-        handsRef.current.onResults(onResults);
+    const initializeMediaPipe = async () => {
+      try {
+        setIsMediaPipeLoading(true);
         
-        // Mark MediaPipe as loaded
-        setIsMediaPipeLoaded(true);
-        setIsLoading(false);
+        // Load the MediaPipe script first
+        await loadMediaPipeScript();
         
-        toast.toast({
-          title: "System Ready",
-          description: "Click the camera button to start hand detection",
-        });
+        // Now initialize the MediaPipe Hands
+        if (window.Hands) {
+          // Create a new Hands instance
+          handsRef.current = new window.Hands({
+            locateFile: (file) => {
+              return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+            }
+          });
+
+          // Configure the Hands instance
+          await handsRef.current.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+          });
+
+          // Set up the callback function for results
+          handsRef.current.onResults(onResults);
+          
+          // Mark MediaPipe as loaded
+          setIsMediaPipeLoaded(true);
+          setIsMediaPipeLoading(false);
+          setIsLoading(false);
+          
+          console.log("MediaPipe Hands initialized successfully");
+          
+          toast({
+            title: "System Ready",
+            description: "Click the camera button to start hand detection",
+          });
+        } else {
+          throw new Error('MediaPipe Hands not available');
+        }
       } catch (error) {
-        console.error('Failed to load MediaPipe Hands:', error);
+        console.error('Failed to initialize MediaPipe Hands:', error);
+        setIsMediaPipeLoading(false);
         setIsLoading(false);
-        toast.toast({
-          title: "MediaPipe Load Error",
-          description: "Failed to load hand detection module. Please check your connection and try again.",
-          variant: "destructive"
+        
+        sonnerToast.error("MediaPipe initialization failed", {
+          description: "Please refresh the page and try again.",
+          duration: 5000
         });
       }
     };
     
-    loadMediaPipe();
+    initializeMediaPipe();
     
+    // Clean up function
     return () => {
       // Clean up MediaPipe resources
       if (handsRef.current) {
@@ -89,6 +130,12 @@ const Index = () => {
         } catch (e) {
           console.error('Error closing MediaPipe:', e);
         }
+      }
+      
+      // Cancel any animation frames
+      if (frameRef.current) {
+        cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
       }
       
       // Clean up any active streams
@@ -116,23 +163,7 @@ const Index = () => {
   const toggleCamera = async () => {
     // If camera is already active, turn it off
     if (isCameraActive) {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-        streamRef.current = null;
-      }
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = null;
-      }
-      
-      setIsCameraActive(false);
-      setHandState('detecting');
-      setBulbPower('off');
-      
-      toast.toast({
-        title: "Camera Turned Off",
-        description: "Hand detection has stopped",
-      });
+      stopCamera();
       return;
     }
     
@@ -140,7 +171,7 @@ const Index = () => {
     try {
       if (!videoRef.current || !isMediaPipeLoaded) {
         if (!isMediaPipeLoaded) {
-          toast.toast({
+          toast({
             title: "MediaPipe Not Ready",
             description: "Please wait for the hand detection system to initialize",
             variant: "destructive"
@@ -149,18 +180,34 @@ const Index = () => {
         return;
       }
       
-      // For mobile devices, use the environment camera if available
-      const facingMode = "user"; // Use "environment" for rear camera, "user" for front camera
+      setIsCameraLoading(true);
+      setCameraPermissionDenied(false);
       
-      const constraints = {
-        video: {
-          facingMode,
-          width: { ideal: 640 },
-          height: { ideal: 480 }
+      // First try to access user-facing camera (for mobile devices)
+      let stream;
+      try {
+        // Try user-facing camera first
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: "user",
+            width: { ideal: 640 },
+            height: { ideal: 480 }
+          }
+        });
+      } catch (frontErr) {
+        console.warn("Failed to access front camera, trying any available camera:", frontErr);
+        
+        // If front camera fails, try any camera
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: true
+          });
+        } catch (anyErr) {
+          throw anyErr; // If this fails too, propagate the error
         }
-      };
+      }
       
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      // Successfully got a stream
       streamRef.current = stream;
       videoRef.current.srcObject = stream;
       
@@ -170,9 +217,17 @@ const Index = () => {
         videoRef.current.play()
           .then(() => {
             setIsCameraActive(true);
-            toast.toast({
+            setIsCameraLoading(false);
+            
+            // Adjust canvas dimensions to match video
+            if (canvasRef.current && videoRef.current) {
+              canvasRef.current.width = videoRef.current.videoWidth;
+              canvasRef.current.height = videoRef.current.videoHeight;
+            }
+            
+            toast({
               title: "Camera Activated",
-              description: "Wave your hand in front of the camera",
+              description: "Hand detection is now running",
             });
             
             // Start processing frames
@@ -180,7 +235,10 @@ const Index = () => {
           })
           .catch(error => {
             console.error('Error playing video:', error);
-            toast.toast({
+            setIsCameraLoading(false);
+            stopCamera();
+            
+            toast({
               title: "Video Playback Error",
               description: "Could not start the camera feed",
               variant: "destructive"
@@ -189,7 +247,9 @@ const Index = () => {
       };
     } catch (error) {
       console.error('Error accessing webcam:', error);
+      setIsCameraLoading(false);
       setHandState('error');
+      setCameraPermissionDenied(true);
       
       // More descriptive error message
       let errorMessage = "Please allow camera access to use this app";
@@ -206,7 +266,7 @@ const Index = () => {
         }
       }
       
-      toast.toast({
+      toast({
         title: "Camera Access Error",
         description: errorMessage,
         variant: "destructive"
@@ -214,7 +274,35 @@ const Index = () => {
     }
   };
 
-  const sendFramesToMediaPipe = async () => {
+  // Stop camera and cleanup
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    
+    // Cancel animation frame if it exists
+    if (frameRef.current) {
+      cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
+    }
+    
+    setIsCameraActive(false);
+    setHandState('detecting');
+    setBulbPower('off');
+    
+    toast({
+      title: "Camera Turned Off",
+      description: "Hand detection has stopped",
+    });
+  };
+
+  // Process video frames with MediaPipe
+  const sendFramesToMediaPipe = () => {
     if (!videoRef.current || !handsRef.current || !canvasRef.current || !isCameraActive) {
       return;
     }
@@ -228,18 +316,14 @@ const Index = () => {
 
     try {
       // Process the current frame
-      await handsRef.current.send({image: videoElement});
-      
-      // Request the next frame (only if camera is still active)
-      if (isCameraActive) {
-        requestAnimationFrame(sendFramesToMediaPipe);
-      }
+      handsRef.current.send({image: videoElement});
     } catch (error) {
       console.error('Error processing frame:', error);
-      // Continue trying to process frames despite errors
-      if (isCameraActive) {
-        requestAnimationFrame(sendFramesToMediaPipe);
-      }
+    }
+    
+    // Request the next frame (only if camera is still active)
+    if (isCameraActive) {
+      frameRef.current = requestAnimationFrame(sendFramesToMediaPipe);
     }
   };
 
@@ -278,7 +362,6 @@ const Index = () => {
       }
     } else {
       setHandState('detecting');
-      setBulbPower('off');
     }
   };
 
@@ -289,11 +372,38 @@ const Index = () => {
     width: number, 
     height: number
   ) => {
+    // Get color based on theme
+    let lineColor, pointColor;
+    
+    switch (theme) {
+      case 'green':
+        lineColor = '#4ade80';
+        pointColor = '#22c55e';
+        break;
+      case 'purple':
+        lineColor = '#a78bfa';
+        pointColor = '#8b5cf6';
+        break;
+      case 'dark':
+        lineColor = '#e2e8f0';
+        pointColor = '#f8fafc';
+        break;
+      case 'cyberpunk':
+        lineColor = '#ff00ff';
+        pointColor = '#00ffff';
+        break;
+      case 'neon':
+        lineColor = '#39ff14';
+        pointColor = '#00ffff';
+        break;
+      default: // blue theme
+        lineColor = '#60a5fa';
+        pointColor = '#3b82f6';
+    }
+    
     // Draw connections between landmarks
     ctx.lineWidth = 2;
-    ctx.strokeStyle = theme === 'green' ? '#4ade80' : 
-                     theme === 'purple' ? '#a78bfa' : 
-                     theme === 'dark' ? '#e2e8f0' : '#60a5fa';
+    ctx.strokeStyle = lineColor;
     
     // Define connections between landmarks
     const connections = [
@@ -317,9 +427,7 @@ const Index = () => {
     }
     
     // Draw landmarks
-    ctx.fillStyle = theme === 'green' ? '#22c55e' : 
-                   theme === 'purple' ? '#8b5cf6' : 
-                   theme === 'dark' ? '#f8fafc' : '#3b82f6';
+    ctx.fillStyle = pointColor;
     landmarks.forEach(landmark => {
       ctx.beginPath();
       ctx.arc(
@@ -337,24 +445,40 @@ const Index = () => {
     
     let openFingers = 0;
     
-    // Check if thumb is extended
-    const thumbIsOpen = 
-      landmarks[4].x < landmarks[3].x && 
-      landmarks[3].x < landmarks[2].x && 
-      landmarks[2].x < landmarks[1].x;
+    // Check if thumb is extended (different for left vs right hand)
+    // This is a simplified check that works better across different hand orientations
+    const thumbTip = landmarks[4];
+    const thumbIp = landmarks[3];
+    const thumbMcp = landmarks[2];
+    const wrist = landmarks[0]; 
     
-    if (thumbIsOpen) openFingers++;
+    // Calculate distance from wrist to check if thumb is extended
+    const distanceFromWrist = Math.sqrt(
+      Math.pow(thumbTip.x - wrist.x, 2) + 
+      Math.pow(thumbTip.y - wrist.y, 2)
+    );
     
-    // Check if index finger is extended
+    const distanceFromMcp = Math.sqrt(
+      Math.pow(thumbTip.x - thumbMcp.x, 2) + 
+      Math.pow(thumbTip.y - thumbMcp.y, 2)
+    );
+    
+    // If thumb tip is far enough from wrist and MCP, consider it extended
+    if (distanceFromWrist > 0.15 && distanceFromMcp > 0.08) {
+      openFingers++;
+    }
+    
+    // For the four fingers, check if the tip is above (lower y value) than the PIP joint
+    // Index finger
     if (landmarks[8].y < landmarks[6].y) openFingers++;
     
-    // Check if middle finger is extended
+    // Middle finger
     if (landmarks[12].y < landmarks[10].y) openFingers++;
     
-    // Check if ring finger is extended
+    // Ring finger
     if (landmarks[16].y < landmarks[14].y) openFingers++;
     
-    // Check if pinky is extended
+    // Pinky
     if (landmarks[20].y < landmarks[18].y) openFingers++;
     
     return openFingers;
@@ -362,21 +486,78 @@ const Index = () => {
 
   // Get status text based on hand state
   const getStatusText = () => {
+    if (isMediaPipeLoading) return 'Initializing hand detection system...';
+    if (cameraPermissionDenied) return 'Camera access was denied. Please check permissions.';
+    if (isCameraLoading) return 'Starting camera...';
     if (!isCameraActive) return 'Click the button below to turn on camera';
     
     switch (handState) {
       case 'open': return 'Hand Open - Bulb at Full Power';
       case 'half-open': return 'Hand Half Open - Bulb at Half Power';
       case 'closed': return 'Hand Closed - Bulb Off';
-      case 'detecting': return 'Wave your hand in front of the camera';
+      case 'detecting': return 'Show your hand in front of the camera';
       case 'error': return 'Camera access error. Please check permissions.';
-      default: return 'Initializing...';
+      default: return 'Processing...';
     }
   };
 
   return (
     <div className={`min-h-screen bg-background py-10 px-4 sm:px-6`}>
       <BackgroundAnimations />
+      
+      {/* Tech animations container */}
+      <div className="tech-particles-container">
+        {[...Array(20)].map((_, i) => (
+          <div 
+            key={i} 
+            className="tech-particle" 
+            style={{
+              top: `${Math.random() * 100}%`,
+              left: `${Math.random() * 100}%`,
+              opacity: Math.random() * 0.5 + 0.5,
+              animation: `pulse ${Math.random() * 3 + 2}s infinite alternate`
+            }}
+          />
+        ))}
+      </div>
+      
+      {/* Digital circuit background */}
+      <div className="digital-circuit">
+        {[...Array(10)].map((_, i) => (
+          <div 
+            key={`line-${i}`} 
+            className="digital-line" 
+            style={{
+              top: `${Math.random() * 100}%`,
+              left: 0,
+              width: '100%',
+              height: '1px'
+            }}
+          />
+        ))}
+        {[...Array(10)].map((_, i) => (
+          <div 
+            key={`line-v-${i}`} 
+            className="digital-line" 
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: 0,
+              width: '1px',
+              height: '100%'
+            }}
+          />
+        ))}
+        {[...Array(15)].map((_, i) => (
+          <div 
+            key={`node-${i}`} 
+            className="digital-node" 
+            style={{
+              top: `${Math.random() * 100}%`,
+              left: `${Math.random() * 100}%`,
+            }}
+          />
+        ))}
+      </div>
       
       <div className="max-w-4xl mx-auto">
         {/* Header with Theme Switcher */}
@@ -387,7 +568,7 @@ const Index = () => {
           <h1 className="text-4xl sm:text-5xl font-bold mb-3 font-poppins gradient-text">
             Lokesh Yantram
           </h1>
-          <div className="flex justify-center gap-2 mb-4">
+          <div className="flex flex-wrap justify-center gap-2 mb-4">
             <span className="tech-badge">AI</span>
             <span className="tech-badge">Hand Detection</span>
             <span className="tech-badge">Interactive</span>
@@ -405,13 +586,13 @@ const Index = () => {
             <h2 className="text-xl font-semibold mb-4 font-poppins">Hand Detection</h2>
             
             <div className="viewport-container mb-4">
-              {isLoading && (
+              {(isLoading || isMediaPipeLoading) && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-10">
                   <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
                 </div>
               )}
               
-              {!isCameraActive && (
+              {!isCameraActive && !isCameraLoading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-10">
                   <div className="text-center p-4">
                     <Camera className="mx-auto mb-2 opacity-50" size={40} />
@@ -442,7 +623,8 @@ const Index = () => {
             <div className="flex justify-center">
               <CameraToggle 
                 isCameraActive={isCameraActive} 
-                toggleCamera={toggleCamera} 
+                toggleCamera={toggleCamera}
+                isLoading={isCameraLoading || isMediaPipeLoading}
               />
             </div>
           </div>

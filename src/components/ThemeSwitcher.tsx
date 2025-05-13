@@ -1,7 +1,7 @@
 
 import React from 'react';
 
-type ThemeOption = 'blue' | 'dark' | 'purple' | 'green';
+type ThemeOption = 'blue' | 'dark' | 'purple' | 'green' | 'cyberpunk' | 'neon';
 
 interface ThemeSwitcherProps {
   currentTheme: ThemeOption;
@@ -9,32 +9,33 @@ interface ThemeSwitcherProps {
 }
 
 const ThemeSwitcher = ({ currentTheme, setTheme }: ThemeSwitcherProps) => {
+  // Theme colors and visual representations
+  const themes = [
+    { id: 'blue', color: '#3b82f6', name: 'Blue' },
+    { id: 'dark', color: '#1e293b', name: 'Dark' },
+    { id: 'purple', color: '#8b5cf6', name: 'Purple' },
+    { id: 'green', color: '#22c55e', name: 'Green' },
+    { id: 'cyberpunk', color: '#ff00ff', name: 'Cyberpunk' },
+    { id: 'neon', color: '#39ff14', name: 'Neon' }
+  ];
+
   return (
-    <div className="theme-switcher">
-      <button 
-        className={`theme-button theme-button-blue ${currentTheme === 'blue' ? 'active' : ''}`}
-        onClick={() => setTheme('blue')}
-        aria-label="Blue theme"
-        type="button"
-      />
-      <button 
-        className={`theme-button theme-button-dark ${currentTheme === 'dark' ? 'active' : ''}`}
-        onClick={() => setTheme('dark')}
-        aria-label="Dark theme"
-        type="button"
-      />
-      <button 
-        className={`theme-button theme-button-purple ${currentTheme === 'purple' ? 'active' : ''}`}
-        onClick={() => setTheme('purple')}
-        aria-label="Purple theme"
-        type="button"
-      />
-      <button 
-        className={`theme-button theme-button-green ${currentTheme === 'green' ? 'active' : ''}`}
-        onClick={() => setTheme('green')}
-        aria-label="Green theme"
-        type="button"
-      />
+    <div className="theme-switcher flex flex-wrap gap-2">
+      {themes.map(theme => (
+        <button 
+          key={theme.id}
+          className={`
+            w-6 h-6 rounded-full transition-all duration-300
+            ${currentTheme === theme.id ? 'ring-2 ring-offset-2 ring-white' : ''}
+            hover:scale-110 hover:shadow-lg
+          `}
+          style={{ backgroundColor: theme.color }}
+          onClick={() => setTheme(theme.id as ThemeOption)}
+          aria-label={`${theme.name} theme`}
+          type="button"
+          title={theme.name}
+        />
+      ))}
     </div>
   );
 };

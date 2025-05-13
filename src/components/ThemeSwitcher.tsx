@@ -25,9 +25,9 @@ const ThemeSwitcher = ({ currentTheme, setTheme }: ThemeSwitcherProps) => {
         <button 
           key={theme.id}
           className={`
-            w-6 h-6 rounded-full transition-all duration-300
-            ${currentTheme === theme.id ? 'ring-2 ring-offset-2 ring-white' : ''}
-            hover:scale-110 hover:shadow-lg
+            w-8 h-8 rounded-full transition-all duration-300
+            ${currentTheme === theme.id ? 'ring-2 ring-offset-2 ring-white scale-110' : ''}
+            hover:scale-110 hover:shadow-lg active:scale-90
           `}
           style={{ backgroundColor: theme.color }}
           onClick={() => setTheme(theme.id as ThemeOption)}

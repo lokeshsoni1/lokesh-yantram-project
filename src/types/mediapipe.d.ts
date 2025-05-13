@@ -1,15 +1,15 @@
 
 // Type definitions for MediaPipe
-interface HandsOptions {
+declare interface HandsOptions {
   locateFile: (file: string) => string;
 }
 
-interface HandsResults {
+declare interface HandsResults {
   multiHandLandmarks: Array<Array<{x: number; y: number; z: number}>>;
   image: HTMLVideoElement | HTMLImageElement;
 }
 
-interface Hands {
+declare interface Hands {
   new(options?: HandsOptions): Hands;
   setOptions(options: {
     maxNumHands: number;
@@ -25,7 +25,7 @@ interface Hands {
 // Extend the Window interface to include MediaPipe objects
 declare global {
   interface Window {
-    Hands?: Hands;
+    Hands: Hands;
   }
 }
 

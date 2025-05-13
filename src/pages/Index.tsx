@@ -7,9 +7,6 @@ import CameraToggle from "@/components/CameraToggle";
 import ThemeSwitcher from "@/components/ThemeSwitcher";
 import BackgroundAnimations from "@/components/BackgroundAnimations";
 
-// Import the MediaPipe types (TypeScript will use this)
-import '../types/mediapipe';
-
 // Define theme options
 type ThemeOption = 'blue' | 'dark' | 'purple' | 'green' | 'cyberpunk' | 'neon';
 
@@ -52,7 +49,7 @@ const Index = () => {
         }
 
         const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js';
+        script.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js';
         script.crossOrigin = 'anonymous';
         script.onload = () => {
           console.log("MediaPipe script loaded successfully");
@@ -78,7 +75,7 @@ const Index = () => {
           // Create a new Hands instance
           handsRef.current = new window.Hands({
             locateFile: (file) => {
-              return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+              return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`;
             }
           });
 
@@ -209,42 +206,45 @@ const Index = () => {
       
       // Successfully got a stream
       streamRef.current = stream;
-      videoRef.current.srcObject = stream;
       
-      videoRef.current.onloadedmetadata = () => {
-        if (!videoRef.current) return;
-        
-        videoRef.current.play()
-          .then(() => {
-            setIsCameraActive(true);
-            setIsCameraLoading(false);
-            
-            // Adjust canvas dimensions to match video
-            if (canvasRef.current && videoRef.current) {
-              canvasRef.current.width = videoRef.current.videoWidth;
-              canvasRef.current.height = videoRef.current.videoHeight;
-            }
-            
-            toast({
-              title: "Camera Activated",
-              description: "Hand detection is now running",
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      
+        videoRef.current.onloadedmetadata = () => {
+          if (!videoRef.current) return;
+          
+          videoRef.current.play()
+            .then(() => {
+              setIsCameraActive(true);
+              setIsCameraLoading(false);
+              
+              // Adjust canvas dimensions to match video
+              if (canvasRef.current && videoRef.current) {
+                canvasRef.current.width = videoRef.current.videoWidth;
+                canvasRef.current.height = videoRef.current.videoHeight;
+              }
+              
+              toast({
+                title: "Camera Activated",
+                description: "Hand detection is now running",
+              });
+              
+              // Start processing frames
+              sendFramesToMediaPipe();
+            })
+            .catch(error => {
+              console.error('Error playing video:', error);
+              setIsCameraLoading(false);
+              stopCamera();
+              
+              toast({
+                title: "Video Playback Error",
+                description: "Could not start the camera feed",
+                variant: "destructive"
+              });
             });
-            
-            // Start processing frames
-            sendFramesToMediaPipe();
-          })
-          .catch(error => {
-            console.error('Error playing video:', error);
-            setIsCameraLoading(false);
-            stopCamera();
-            
-            toast({
-              title: "Video Playback Error",
-              description: "Could not start the camera feed",
-              variant: "destructive"
-            });
-          });
-      };
+        };
+      }
     } catch (error) {
       console.error('Error accessing webcam:', error);
       setIsCameraLoading(false);

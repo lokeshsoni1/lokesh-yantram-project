@@ -26,15 +26,29 @@ const ThemeSwitcher = ({ currentTheme, setTheme }: ThemeSwitcherProps) => {
           key={theme.id}
           className={`
             w-8 h-8 rounded-full transition-all duration-300
-            ${currentTheme === theme.id ? 'ring-2 ring-offset-2 ring-white scale-110' : ''}
+            ${currentTheme === theme.id 
+              ? 'ring-2 ring-offset-2 ring-primary shadow-lg scale-110' 
+              : 'opacity-80 hover:opacity-100'}
             hover:scale-110 hover:shadow-lg active:scale-90
+            ${theme.id === 'cyberpunk' ? 'bg-gradient-to-br from-fuchsia-600 to-cyan-500' : ''}
+            ${theme.id === 'neon' ? 'bg-gradient-to-br from-green-400 to-blue-400' : ''}
           `}
-          style={{ backgroundColor: theme.color }}
+          style={
+            theme.id !== 'cyberpunk' && theme.id !== 'neon' 
+              ? { backgroundColor: theme.color } 
+              : {}
+          }
           onClick={() => setTheme(theme.id as ThemeOption)}
           aria-label={`${theme.name} theme`}
           type="button"
           title={theme.name}
-        />
+        >
+          {currentTheme === theme.id && (
+            <div className="flex items-center justify-center w-full h-full text-white text-xs">
+              ✓
+            </div>
+          )}
+        </button>
       ))}
     </div>
   );

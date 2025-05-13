@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { toast as sonnerToast } from "sonner";
-import { Camera } from "lucide-react";
+import { Camera, Hand } from "lucide-react";
 import CameraToggle from "@/components/CameraToggle";
 import ThemeSwitcher from "@/components/ThemeSwitcher";
 import BackgroundAnimations from "@/components/BackgroundAnimations";
@@ -16,7 +16,7 @@ const Index = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const contactLinksRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const handsRef = useRef<any>(null);
+  const handsRef = useRef<Hands | null>(null);
   const frameRef = useRef<number | null>(null);
   
   // State variables
@@ -29,6 +29,7 @@ const Index = () => {
   const [isCameraLoading, setIsCameraLoading] = useState<boolean>(false);
   const [theme, setTheme] = useState<ThemeOption>('blue');
   const [cameraPermissionDenied, setCameraPermissionDenied] = useState<boolean>(false);
+  const [handLandmarks, setHandLandmarks] = useState<Array<HandLandmark> | null>(null);
   
   // Access toast utilities
   const { toast } = useToast();
@@ -98,7 +99,7 @@ const Index = () => {
           console.log("MediaPipe Hands initialized successfully");
           
           toast({
-            title: "System Ready",
+            title: "Hand Tracking Ready",
             description: "Click the camera button to start hand detection",
           });
         } else {
@@ -141,7 +142,7 @@ const Index = () => {
         streamRef.current = null;
       }
     };
-  }, []);
+  }, [toast]);
 
   // Animate contact links on page load
   useEffect(() => {
@@ -169,8 +170,8 @@ const Index = () => {
       if (!videoRef.current || !isMediaPipeLoaded) {
         if (!isMediaPipeLoaded) {
           toast({
-            title: "MediaPipe Not Ready",
-            description: "Please wait for the hand detection system to initialize",
+            title: "Hand Tracking Not Ready",
+            description: "Please wait for the hand tracking system to initialize",
             variant: "destructive"
           });
         }
@@ -225,8 +226,8 @@ const Index = () => {
               }
               
               toast({
-                title: "Camera Activated",
-                description: "Hand detection is now running",
+                title: "Hand Tracking Activated",
+                description: "Show your hand in front of the camera",
               });
               
               // Start processing frames
@@ -294,6 +295,7 @@ const Index = () => {
     setIsCameraActive(false);
     setHandState('detecting');
     setBulbPower('off');
+    setHandLandmarks(null);
     
     toast({
       title: "Camera Turned Off",
@@ -302,7 +304,7 @@ const Index = () => {
   };
 
   // Process video frames with MediaPipe
-  const sendFramesToMediaPipe = () => {
+  const sendFramesToMediaPipe = async () => {
     if (!videoRef.current || !handsRef.current || !canvasRef.current || !isCameraActive) {
       return;
     }
@@ -316,7 +318,7 @@ const Index = () => {
 
     try {
       // Process the current frame
-      handsRef.current.send({image: videoElement});
+      await handsRef.current.send({image: videoElement});
     } catch (error) {
       console.error('Error processing frame:', error);
     }
@@ -328,7 +330,7 @@ const Index = () => {
   };
 
   // Process hand detection results
-  const onResults = (results: any) => {
+  const onResults = (results: HandsResults) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     
@@ -342,6 +344,9 @@ const Index = () => {
     if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
       // Get landmarks for the first hand
       const landmarks = results.multiHandLandmarks[0];
+      
+      // Store landmarks for use in other effects/renders
+      setHandLandmarks(landmarks);
       
       // Draw hand landmarks
       drawHandLandmarks(ctx, landmarks, canvas.width, canvas.height);
@@ -362,48 +367,58 @@ const Index = () => {
       }
     } else {
       setHandState('detecting');
+      setHandLandmarks(null);
     }
   };
 
   // Draw hand landmarks on canvas
   const drawHandLandmarks = (
     ctx: CanvasRenderingContext2D, 
-    landmarks: any[], 
+    landmarks: Array<HandLandmark>, 
     width: number, 
     height: number
   ) => {
     // Get color based on theme
-    let lineColor, pointColor;
+    let lineColor, pointColor, jointColor;
     
     switch (theme) {
       case 'green':
         lineColor = '#4ade80';
         pointColor = '#22c55e';
+        jointColor = '#bbf7d0';
         break;
       case 'purple':
         lineColor = '#a78bfa';
         pointColor = '#8b5cf6';
+        jointColor = '#ddd6fe';
         break;
       case 'dark':
         lineColor = '#e2e8f0';
         pointColor = '#f8fafc';
+        jointColor = '#cbd5e1';
         break;
       case 'cyberpunk':
         lineColor = '#ff00ff';
         pointColor = '#00ffff';
+        jointColor = '#ffff00';
         break;
       case 'neon':
         lineColor = '#39ff14';
         pointColor = '#00ffff';
+        jointColor = '#ff3399';
         break;
       default: // blue theme
         lineColor = '#60a5fa';
         pointColor = '#3b82f6';
+        jointColor = '#bfdbfe';
     }
     
-    // Draw connections between landmarks
-    ctx.lineWidth = 2;
+    // Draw hand mesh with glow effect
+    ctx.save();
+    ctx.lineWidth = 3;
     ctx.strokeStyle = lineColor;
+    ctx.shadowColor = lineColor;
+    ctx.shadowBlur = 10;
     
     // Define connections between landmarks
     const connections = [
@@ -425,22 +440,46 @@ const Index = () => {
       ctx.lineTo(endPoint.x * width, endPoint.y * height);
       ctx.stroke();
     }
+    ctx.restore();
     
-    // Draw landmarks
-    ctx.fillStyle = pointColor;
-    landmarks.forEach(landmark => {
+    // Draw joints with glow effect
+    ctx.save();
+    ctx.fillStyle = jointColor;
+    ctx.shadowColor = jointColor;
+    ctx.shadowBlur = 15;
+    landmarks.forEach((landmark, i) => {
+      const isKnuckle = [0, 2, 5, 9, 13, 17].includes(i);
       ctx.beginPath();
       ctx.arc(
         landmark.x * width, 
         landmark.y * height, 
-        3, 0, 2 * Math.PI
+        isKnuckle ? 5 : 3, 0, 2 * Math.PI
       );
       ctx.fill();
     });
+    ctx.restore();
+    
+    // Draw fingertips with special color and larger size
+    ctx.save();
+    ctx.fillStyle = pointColor;
+    ctx.shadowColor = pointColor;
+    ctx.shadowBlur = 20;
+    const fingertips = [4, 8, 12, 16, 20]; // Indices of fingertips
+    fingertips.forEach(i => {
+      const landmark = landmarks[i];
+      ctx.beginPath();
+      ctx.arc(
+        landmark.x * width, 
+        landmark.y * height, 
+        6, 0, 2 * Math.PI
+      );
+      ctx.fill();
+    });
+    ctx.restore();
   };
 
   // Count open fingers based on hand landmarks
-  const countOpenFingers = (landmarks: any[]): number => {
+  const countOpenFingers = (landmarks: Array<HandLandmark>): number => {
     if (!landmarks) return 0;
     
     let openFingers = 0;
@@ -486,7 +525,7 @@ const Index = () => {
 
   // Get status text based on hand state
   const getStatusText = () => {
-    if (isMediaPipeLoading) return 'Initializing hand detection system...';
+    if (isMediaPipeLoading) return 'Initializing hand tracking system...';
     if (cameraPermissionDenied) return 'Camera access was denied. Please check permissions.';
     if (isCameraLoading) return 'Starting camera...';
     if (!isCameraActive) return 'Click the button below to turn on camera';
@@ -585,17 +624,17 @@ const Index = () => {
           <div className="bg-card p-6 rounded-lg shadow-lg">
             <h2 className="text-xl font-semibold mb-4 font-poppins">Hand Detection</h2>
             
-            <div className="viewport-container mb-4">
+            <div className="viewport-container mb-4 relative">
               {(isLoading || isMediaPipeLoading) && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-10">
+                <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-10 rounded-lg">
                   <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
                 </div>
               )}
               
               {!isCameraActive && !isCameraLoading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-10">
+                <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-10 rounded-lg">
                   <div className="text-center p-4">
-                    <Camera className="mx-auto mb-2 opacity-50" size={40} />
+                    <Hand className="mx-auto mb-2 opacity-50" size={40} />
                     <p className="text-sm opacity-80">Camera is turned off</p>
                   </div>
                 </div>
@@ -603,22 +642,22 @@ const Index = () => {
               
               <video 
                 ref={videoRef} 
-                className="viewport" 
-                width="320" 
-                height="240" 
+                className="viewport rounded-lg w-full h-auto" 
+                width="640" 
+                height="480" 
                 autoPlay 
                 playsInline
                 muted // Important for mobile devices
               ></video>
               <canvas 
                 ref={canvasRef} 
-                className="hand-overlay" 
-                width="320" 
-                height="240"
+                className="hand-overlay absolute top-0 left-0 w-full h-full" 
+                width="640" 
+                height="480"
               ></canvas>
             </div>
             
-            <div className="status-text mb-4">{getStatusText()}</div>
+            <div className="status-text text-center mb-4 font-medium text-primary">{getStatusText()}</div>
             
             <div className="flex justify-center">
               <CameraToggle 

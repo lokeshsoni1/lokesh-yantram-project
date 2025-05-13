@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Camera, CameraOff } from 'lucide-react';
+import { Camera, CameraOff, Hand } from 'lucide-react';
 
 interface CameraToggleProps {
   isCameraActive: boolean;
@@ -32,12 +32,13 @@ const CameraToggle = ({ isCameraActive, toggleCamera, isLoading = false }: Camer
       ) : isCameraActive ? (
         <>
           <CameraOff size={20} />
-          <span>Turn Camera Off</span>
+          <span>Stop Hand Tracking</span>
         </>
       ) : (
         <>
+          <Hand size={20} className="mr-1" />
           <Camera size={20} />
-          <span>Turn Camera On</span>
+          <span>Start Hand Tracking</span>
         </>
       )}
     </button>
